@@ -1,8 +1,9 @@
 {
   "product": "VOCALINK TRADE",
-  "version": "v1.0.0",
+  "version": "v1.1.0",
   "updated": "2026-10-18",
   "changes": [
+    "fix: refresh BTC, ETH and SOL prices for multi-asset valuation and stop trading on stale data",
     "Initial paper-trading game with public market data, chart, balances, and local history"
   ]
 }
