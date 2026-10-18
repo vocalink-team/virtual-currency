@@ -1,0 +1,8 @@
+{
+  "product": "VOCALINK TRADE",
+  "version": "v1.0.0",
+  "updated": "2026-10-18",
+  "changes": [
+    "Initial paper-trading game with public market data, chart, balances, and local history"
+  ]
+}
