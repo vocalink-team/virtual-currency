@@ -1,6 +1,8 @@
 "use strict";
 
 const API = "https://data-api.binance.vision/api/v3/klines";
+const PRICE_API = "https://data-api.binance.vision/api/v3/ticker/price";
+const PRICE_TTL = 60000;
 const STORAGE_KEY = "vocalink-trade-v1";
 const STARTING_CASH = 1000000; // USDT。実際の入金は不要
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
@@ -27,8 +29,9 @@ let state = loadState();
 let currentSymbol = "BTCUSDT";
 let candles = [];
 const prices = {};
-let lastUpdate = 0;
 let requestId = 0;
+let refreshInProgress = false;
+const priceUpdatedAt = {};
 
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -47,27 +50,57 @@ async function fetchCandles(symbol) {
   return data;
 }
 
+async function fetchAllPrices() {
+  const response = await fetch(PRICE_API, { cache: "no-store" });
+  if (!response.ok) throw new Error("価格APIの応答: HTTP " + response.status);
+  const rows = await response.json();
+  if (!Array.isArray(rows)) throw new Error("価格データの形式が不正です。");
+  const now = Date.now();
+  for (const row of rows) {
+    if (!SYMBOLS.includes(row.symbol)) continue;
+    const value = Number(row.price);
+    if (!Number.isFinite(value) || value <= 0) continue;
+    prices[row.symbol] = value;
+    priceUpdatedAt[row.symbol] = now;
+  }
+  if (!SYMBOLS.every((symbol) => isFresh(symbol))) {
+    throw new Error("一部の通貨の価格を取得できません。");
+  }
+}
+
+function isFresh(symbol) {
+  return Number.isFinite(prices[symbol]) &&
+    Number.isFinite(priceUpdatedAt[symbol]) &&
+    Date.now() - priceUpdatedAt[symbol] < PRICE_TTL;
+}
+
 async function refreshMarket() {
+  if (refreshInProgress) return;
+  refreshInProgress = true;
   const symbol = currentSymbol;
   const id = ++requestId;
   $("market-status").textContent = "取得中";
   $("buy").disabled = true;
   $("sell").disabled = true;
   try {
-    const data = await fetchCandles(symbol);
+    const [data] = await Promise.all([fetchCandles(symbol), fetchAllPrices()]);
     if (id !== requestId || symbol !== currentSymbol) return;
     candles = data;
-    prices[symbol] = data[data.length - 1].close;
-    lastUpdate = Date.now();
-    $("market-status").textContent = "取得成功 " + new Date(lastUpdate).toLocaleTimeString("ja-JP");
+    const updated = priceUpdatedAt[symbol];
+    $("market-status").textContent = "取得成功 " + new Date(updated).toLocaleTimeString("ja-JP");
     showNotice("仮想資金を使って取引できます。");
-    render();
   } catch (error) {
     if (id !== requestId) return;
     candles = [];
-    delete prices[symbol];
+    for (const symbol of SYMBOLS) {
+      delete prices[symbol];
+      delete priceUpdatedAt[symbol];
+    }
     $("market-status").textContent = "取得失敗 / 取引停止";
-    showNotice("相場を取得できません。通信状況を確認してください。" + (error?.message ? " " + error.message : ""));
+    showNotice("相場を取得できません。通信状況を確認してください。" +
+      (error?.message ? " " + error.message : ""));
+  } finally {
+    refreshInProgress = false;
     render();
   }
 }
@@ -83,8 +116,8 @@ function render() {
   $("pair-label").textContent = currentSymbol.replace("USDT", " / USDT");
   $("price-label").textContent = Number.isFinite(price) ? money(price) + " USDT" : "--";
   $("cash").textContent = money(state.cash) + " USDT";
-  const holdingsValue = SYMBOLS.reduce((sum, symbol) => sum + (Number.isFinite(prices[symbol]) ? state.holdings[symbol] * prices[symbol] : 0), 0);
-  const unknown = SYMBOLS.some((symbol) => state.holdings[symbol] > 0 && !Number.isFinite(prices[symbol]));
+  const holdingsValue = SYMBOLS.reduce((sum, symbol) => sum + (isFresh(symbol) ? state.holdings[symbol] * prices[symbol] : 0), 0);
+  const unknown = SYMBOLS.some((symbol) => state.holdings[symbol] > 0 && !isFresh(symbol));
   const equity = state.cash + holdingsValue;
   $("equity").textContent = unknown ? "価格取得待ち" : money(equity) + " USDT";
   $("pnl").textContent = unknown ? "--" : (equity >= STARTING_CASH ? "+" : "") + money(equity - STARTING_CASH) + " USDT";
@@ -95,7 +128,7 @@ function render() {
     const name = document.createElement("span");
     name.textContent = symbol.replace("USDT", "");
     const amount = document.createElement("span");
-    amount.textContent = qtyText(state.holdings[symbol]) + " (" + (Number.isFinite(prices[symbol]) ? money(state.holdings[symbol] * prices[symbol]) + " USDT" : "価格未取得") + ")";
+    amount.textContent = qtyText(state.holdings[symbol]) + " (" + (isFresh(symbol) ? money(state.holdings[symbol] * prices[symbol]) + " USDT" : "価格未取得") + ")";
     row.append(name, amount);
     $("holdings-list").append(row);
   }
@@ -109,7 +142,7 @@ function render() {
     }
     $("history-body").append(tr);
   }
-  const live = Number.isFinite(price) && Date.now() - lastUpdate < 60000;
+  const live = isFresh(currentSymbol) && !refreshInProgress;
   $("buy").disabled = !live;
   $("sell").disabled = !live;
   updateEstimate();
@@ -119,7 +152,7 @@ function render() {
 function trade(side) {
   const amount = Number($("amount").value);
   const price = prices[currentSymbol];
-  if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(price) || Date.now() - lastUpdate >= 60000) {
+  if (refreshInProgress || !Number.isFinite(amount) || amount <= 0 || !Number.isFinite(price) || !isFresh(currentSymbol)) {
     showNotice("数量または相場データが無効です。"); return;
   }
   const total = amount * price;
@@ -176,8 +209,6 @@ function drawChart() {
 $("coin").addEventListener("change", () => {
   currentSymbol = $("coin").value;
   candles = [];
-  delete prices[currentSymbol];
-  lastUpdate = 0;
   render();
   refreshMarket();
 });
@@ -192,3 +223,4 @@ window.addEventListener("resize", drawChart);
 render();
 refreshMarket();
 setInterval(refreshMarket, 15000);
+setInterval(render, 5000);
