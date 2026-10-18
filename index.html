@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VOCALINK TRADE - トレード体験</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><span class="eyebrow">VOCALINK-TEAM / SIMULATOR</span><h1>VOCALINK <span>TRADE</span></h1></div>
+    <span class="pill">DEMO / 現金取引なし</span>
+  </header>
+  <main class="layout">
+    <section class="overview">
+      <div class="stat"><small>総資産（USDT換算）</small><strong id="equity">--</strong></div>
+      <div class="stat"><small>利用可能な仮想資金</small><strong id="cash">--</strong></div>
+      <div class="stat"><small>累計損益</small><strong id="pnl">--</strong></div>
+      <div class="stat"><small>相場データ</small><strong id="market-status" class="status">接続中...</strong></div>
+    </section>
+    <section class="panel chart-panel">
+      <div class="panel-head">
+        <div><span class="eyebrow">LIVE MARKET</span><h2 id="pair-label">BTC / USDT</h2><p id="price-label" class="price">--</p></div>
+        <div class="controls">
+          <label for="coin">通貨</label>
+          <select id="coin">
+            <option value="BTCUSDT">Bitcoin / BTC</option>
+            <option value="ETHUSDT">Ethereum / ETH</option>
+            <option value="SOLUSDT">Solana / SOL</option>
+          </select>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart" role="img" aria-label="直近の価格推移チャート"></canvas></div>
+      <p class="hint">公開APIから価格を約15秒ごとに取得します。価格はUSDT建てです。</p>
+    </section>
+    <section class="panel trade-panel">
+      <span class="eyebrow">PAPER TRADING</span><h2>注文</h2>
+      <label for="amount">売買数量（通貨単位）</label>
+      <input id="amount" type="number" min="0" step="any" inputmode="decimal" placeholder="例：0.001">
+      <p id="estimate" class="hint">概算金額：--</p>
+      <div class="actions"><button id="buy" class="buy" disabled>買う</button><button id="sell" class="sell" disabled>売る</button></div>
+      <p id="notice" class="notice" role="status" aria-live="polite">価格取得待ちです。</p>
+      <button id="reset" class="reset">ゲームを最初からやり直す</button>
+    </section>
+    <section class="panel holdings"><h2>保有資産</h2><div id="holdings-list"></div></section>
+    <section class="panel history">
+      <h2>取引履歴</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>日時</th><th>種類</th><th>通貨</th><th>数量</th><th>価格（USDT）</th></tr></thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <footer>v1.0.0 | 仮想資金による模擬取引ゲームです。現金・暗号資産の入出金はできません。</footer>
+  <script src="app.js" defer></script>
+</body>
+</html>
