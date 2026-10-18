@@ -5,5 +5,24 @@
   "changes": [
     "fix: refresh BTC, ETH and SOL prices for multi-asset valuation and stop trading on stale data",
     "Initial paper-trading game with public market data, chart, balances, and local history"
+  ],
+  "history": [
+    {
+      "version": "v1.1.0",
+      "date": "2026-10-18",
+      "changes": [
+        "BTC・ETH・SOLの価格を一括取得して複数通貨の資産評価を改善",
+        "古い価格による注文を停止",
+        "通貨切り替え中のチャート更新を改善"
+      ]
+    },
+    {
+      "version": "v1.0.0",
+      "date": "2026-10-18",
+      "changes": [
+        "仮想資金による売買ゲームを初公開",
+        "価格チャート・保有資産・損益・取引履歴を実装"
+      ]
+    }
   ]
 }
