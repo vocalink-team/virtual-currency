@@ -210,7 +210,15 @@ $("coin").addEventListener("change", () => {
   currentSymbol = $("coin").value;
   candles = [];
   render();
-  refreshMarket();
+  if (refreshInProgress) {
+    const wait = setInterval(() => {
+      if (refreshInProgress) return;
+      clearInterval(wait);
+      refreshMarket();
+    }, 100);
+  } else {
+    refreshMarket();
+  }
 });
 $("amount").addEventListener("input", updateEstimate);
 $("buy").addEventListener("click", () => trade("buy"));
